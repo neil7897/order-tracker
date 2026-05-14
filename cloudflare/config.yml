@@ -1,0 +1,7 @@
+tunnel: TUNNEL_ID_PLACEHOLDER
+credentials-file: /Users/REPLACE_USERNAME/.cloudflared/TUNNEL_ID_PLACEHOLDER.json
+
+ingress:
+  - hostname: orders.fuchang-erp.com
+    service: http://localhost:8000
+  - service: http_status:404
