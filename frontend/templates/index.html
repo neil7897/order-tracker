@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background: #f4f6f9; }
+    .sidebar {
+      width: 220px; min-height: 100vh;
+      background: #1e2a3a; color: #cdd6e0;
+      position: fixed; top: 0; left: 0;
+      padding-top: 1.5rem;
+    }
+    .sidebar .brand { color: #fff; font-weight: 700; font-size: 1.1rem; padding: 0 1.25rem 1.5rem; border-bottom: 1px solid #2e3f52; }
+    .sidebar .nav-link { color: #9ab0c4; padding: .6rem 1.25rem; border-radius: 6px; margin: 2px 8px; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #2e4460; color: #fff; }
+    .sidebar .nav-link i { margin-right: 8px; }
+    .sidebar .section-label { font-size: .7rem; color: #5a7a96; text-transform: uppercase; letter-spacing: .08em; padding: .75rem 1.25rem .25rem; }
+    .main { margin-left: 220px; padding: 2rem; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+    .badge-urgent { background: #fee2e2; color: #b91c1c; }
+    .badge-soon   { background: #fef3c7; color: #92400e; }
+    .badge-ok     { background: #d1fae5; color: #065f46; }
+    .badge-done   { background: #e0e7ff; color: #3730a3; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot-pending { background: #94a3b8; }
+    .dot-wip     { background: #f59e0b; }
+    .dot-check   { background: #3b82f6; }
+    .dot-done    { background: #10b981; }
+    .timeline-note { border-left: 3px solid #e2e8f0; padding-left: 1rem; margin-bottom: .75rem; }
+    .timeline-note:last-child { margin-bottom: 0; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: .75rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
+    .avatar-sm { width: 22px; height: 22px; font-size: .65rem; }
+    .branch-tag { background: #eff6ff; color: #1d4ed8; border-radius: 4px; padding: 1px 7px; font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="brand"><i class="bi bi-box-seam"></i> 訂單追蹤</div>
+  <nav class="nav flex-column mt-2">
+    <div class="section-label">主要功能</div>
+    <a class="nav-link active" href="#" onclick="showPage('dashboard')"><i class="bi bi-grid-1x2"></i> 總覽</a>
+    <a class="nav-link" href="#" onclick="showPage('orders')"><i class="bi bi-card-list"></i> 訂單管理</a>
+    <div class="section-label">資料管理</div>
+    <a class="nav-link" href="#" onclick="showPage('phonebook')"><i class="bi bi-telephone-fill"></i> 通訊錄</a>
+    <a class="nav-link" href="#" onclick="showPage('customers')"><i class="bi bi-building"></i> 客戶管理</a>
+    <a class="nav-link" href="#" onclick="showPage('staff')"><i class="bi bi-people"></i> 人員管理</a>
+    <div class="section-label">系統</div>
+    <a class="nav-link" href="#" onclick="showPage('notify')"><i class="bi bi-bell"></i> 提醒設定</a>
+  </nav>
+</div>
+
+<div class="main">
+
+  <!-- 總覽 -->
+  <div id="dashboard" class="page active">
+    <h5 class="fw-bold mb-4">總覽</h5>
+    <div class="row g-3 mb-4">
+      <div class="col-md-3"><div class="card p-3"><div class="text-muted small">總訂單數</div><div class="fs-3 fw-bold mt-1" id="kpi-total">–</div></div></div>
+      <div class="col-md-3"><div class="card p-3" style="border-left:4px solid #ef4444!important"><div class="text-muted small">7天內到期</div><div class="fs-3 fw-bold mt-1 text-danger" id="kpi-urgent">–</div></div></div>
+      <div class="col-md-3"><div class="card p-3" style="border-left:4px solid #f59e0b!important"><div class="text-muted small">製作中</div><div class="fs-3 fw-bold mt-1 text-warning" id="kpi-wip">–</div></div></div>
+      <div class="col-md-3"><div class="card p-3" style="border-left:4px solid #10b981!important"><div class="text-muted small">已完成</div><div class="fs-3 fw-bold mt-1 text-success" id="kpi-done">–</div></div></div>
+    </div>
+    <div class="card p-3">
+      <div class="fw-semibold mb-3">即將到期訂單</div>
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>訂單編號</th><th>客戶／院區</th><th>交貨日</th><th>剩餘</th><th>進度</th></tr></thead>
+        <tbody id="dashboard-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 訂單管理 -->
+  <div id="orders" class="page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="fw-bold mb-0">訂單管理</h5>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newOrderModal"><i class="bi bi-plus-lg"></i> 新增訂單</button>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="order-search" placeholder="搜尋客戶 / 訂單號..." oninput="filterOrders()"></div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="order-status-filter" onchange="filterOrders()">
+            <option value="">所有狀態</option><option>製作中</option><option>待出貨</option><option>已完成</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>訂單編號</th><th>客戶／院區</th><th>品項</th><th>交貨日</th><th>剩餘</th><th>狀態</th><th></th></tr></thead>
+        <tbody id="orders-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 訂單詳情 -->
+  <div id="detail" class="page">
+    <div class="mb-4"><a href="#" onclick="showPage('orders')" class="text-muted text-decoration-none"><i class="bi bi-arrow-left"></i> 返回訂單列表</a></div>
+    <div class="card p-4 mb-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h5 class="fw-bold mb-1" id="detail-number">–<span class="ms-1" id="detail-status-badge"></span></h5>
+          <div class="text-muted small" id="detail-customer"></div>
+        </div>
+        <span class="rounded-pill fs-6" id="detail-days"></span>
+      </div>
+      <hr>
+      <div class="row g-3">
+        <div class="col-md-3"><div class="text-muted small">品項</div><div id="detail-items"></div></div>
+        <div class="col-md-3"><div class="text-muted small">交貨日</div><div class="fw-semibold" id="detail-delivery"></div></div>
+        <div class="col-md-3"><div class="text-muted small">提早提醒</div><div id="detail-reminder"></div></div>
+        <div class="col-md-3"><div class="text-muted small">備註</div><div id="detail-notes"></div></div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="fw-semibold">半成品進度</div>
+      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newItemModal"><i class="bi bi-plus"></i> 新增品項</button>
+    </div>
+    <div id="production-container"></div>
+  </div>
+
+  <!-- 通訊錄 -->
+  <div id="phonebook" class="page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="fw-bold mb-0">通訊錄</h5>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newContactModal"><i class="bi bi-plus-lg"></i> 新增聯絡人</button>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control border-start-0" placeholder="搜尋姓名、電話、地址、Email…" oninput="filterPhonebook(this.value)">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" onchange="filterPhonebook()">
+            <option value="">所有類型</option>
+            <option value="客戶">客戶</option>
+            <option value="院區">院區</option>
+            <option value="人員">人員</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3" id="phonebookList">
+
+      <!-- 客戶 -->
+      <div class="col-md-4 pb-card" data-type="客戶" data-search="隆衣 陳志明 0912-345-678 service@lungyi.com 台北市忠孝東路">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="avatar" style="background:#0ea5e9;width:36px;height:36px;font-size:.85rem">隆</div>
+            <div>
+              <div class="fw-semibold">隆衣</div>
+              <span class="badge bg-light text-primary border" style="font-size:.7rem">客戶</span>
+            </div>
+          </div>
+          <div class="small text-muted mb-1"><i class="bi bi-person me-1"></i>聯絡人：陳志明</div>
+          <div class="small mb-1"><i class="bi bi-telephone me-1 text-muted"></i>0912-345-678 <button class="btn btn-link btn-sm p-0 ms-1 text-muted" onclick="copyText('0912-345-678')"><i class="bi bi-copy" style="font-size:.7rem"></i></button></div>
+          <div class="small mb-1"><i class="bi bi-envelope me-1 text-muted"></i>service@lungyi.com</div>
+          <div class="small mb-1"><i class="bi bi-chat me-1 text-muted"></i>LINE：@lungyi</div>
+          <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>台北市忠孝東路三段100號</div>
+        </div>
+      </div>
+
+      <!-- 院區 -->
+      <div class="col-md-4 pb-card" data-type="院區" data-search="隆衣 忠孝院區 林護理長 02-2781-1234 台北市忠孝東路">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="avatar" style="background:#6366f1;width:36px;height:36px;font-size:.85rem">忠</div>
+            <div>
+              <div class="fw-semibold">忠孝院區</div>
+              <span class="badge bg-light border" style="font-size:.7rem;color:#6366f1">院區 · 隆衣</span>
+            </div>
+          </div>
+          <div class="small text-muted mb-1"><i class="bi bi-person me-1"></i>聯絡人：林護理長</div>
+          <div class="small mb-1"><i class="bi bi-telephone me-1 text-muted"></i>02-2781-1234 <button class="btn btn-link btn-sm p-0 ms-1 text-muted" onclick="copyText('02-2781-1234')"><i class="bi bi-copy" style="font-size:.7rem"></i></button></div>
+          <div class="small mb-1"><i class="bi bi-envelope me-1 text-muted"></i>zhongxiao@hospital.com</div>
+          <div class="small mb-1"><i class="bi bi-chat me-1 text-muted"></i>LINE：林護理長個人</div>
+          <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>台北市忠孝東路五段</div>
+        </div>
+      </div>
+
+      <div class="col-md-4 pb-card" data-type="院區" data-search="隆衣 三總院區 黃組長 02-8792-3100 內湖區成功路">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="avatar" style="background:#6366f1;width:36px;height:36px;font-size:.85rem">三</div>
+            <div>
+              <div class="fw-semibold">三總院區</div>
+              <span class="badge bg-light border" style="font-size:.7rem;color:#6366f1">院區 · 隆衣</span>
+            </div>
+          </div>
+          <div class="small text-muted mb-1"><i class="bi bi-person me-1"></i>聯絡人：黃組長</div>
+          <div class="small mb-1"><i class="bi bi-telephone me-1 text-muted"></i>02-8792-3100 <button class="btn btn-link btn-sm p-0 ms-1 text-muted" onclick="copyText('02-8792-3100')"><i class="bi bi-copy" style="font-size:.7rem"></i></button></div>
+          <div class="small mb-1"><i class="bi bi-envelope me-1 text-muted"></i>–</div>
+          <div class="small mb-1"><i class="bi bi-chat me-1 text-muted"></i>LINE：黃組長</div>
+          <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>台北市內湖區成功路二段</div>
+        </div>
+      </div>
+
+      <!-- 人員 -->
+      <div class="col-md-4 pb-card" data-type="人員" data-search="王大明 裁縫師 0912-111-222">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="avatar" style="width:36px;height:36px;font-size:.85rem">王</div>
+            <div>
+              <div class="fw-semibold">王大明</div>
+              <span class="badge bg-light text-success border" style="font-size:.7rem">人員 · 裁縫師</span>
+            </div>
+          </div>
+          <div class="small mb-1"><i class="bi bi-telephone me-1 text-muted"></i>0912-111-222 <button class="btn btn-link btn-sm p-0 ms-1 text-muted" onclick="copyText('0912-111-222')"><i class="bi bi-copy" style="font-size:.7rem"></i></button></div>
+          <div class="small mb-1"><i class="bi bi-envelope me-1 text-muted"></i>–</div>
+          <div class="small mb-1"><i class="bi bi-chat me-1 text-muted"></i>LINE：wang_daming</div>
+          <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>–</div>
+        </div>
+      </div>
+
+      <div class="col-md-4 pb-card" data-type="人員" data-search="陳小芬 車縫師 0923-333-444">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="avatar" style="background:#8b5cf6;width:36px;height:36px;font-size:.85rem">陳</div>
+            <div>
+              <div class="fw-semibold">陳小芬</div>
+              <span class="badge bg-light text-success border" style="font-size:.7rem">人員 · 車縫師</span>
+            </div>
+          </div>
+          <div class="small mb-1"><i class="bi bi-telephone me-1 text-muted"></i>0923-333-444 <button class="btn btn-link btn-sm p-0 ms-1 text-muted" onclick="copyText('0923-333-444')"><i class="bi bi-copy" style="font-size:.7rem"></i></button></div>
+          <div class="small mb-1"><i class="bi bi-envelope me-1 text-muted"></i>chen@mail.com</div>
+          <div class="small mb-1"><i class="bi bi-chat me-1 text-muted"></i>–</div>
+          <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>–</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客戶管理 -->
+  <div id="customers" class="page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="fw-bold mb-0">客戶管理</h5>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newCustomerModal"><i class="bi bi-plus-lg"></i> 新增客戶</button>
+    </div>
+    <div class="row g-3">
+
+      <div id="customers-container" class="row g-3"></div>
+
+    </div>
+  </div>
+
+  <!-- 人員管理 -->
+  <div id="staff" class="page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="fw-bold mb-0">人員管理</h5>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newStaffModal"><i class="bi bi-plus-lg"></i> 新增人員</button>
+    </div>
+    <div class="card">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>姓名</th><th>職稱</th><th>聯絡方式</th><th>目前負責品項數</th><th></th></tr></thead>
+        <tbody id="staff-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 提醒設定 -->
+  <div id="notify" class="page">
+    <h5 class="fw-bold mb-4">提醒設定</h5>
+    <div class="card p-4" style="max-width:500px">
+      <div class="mb-3"><label class="form-label fw-semibold">Telegram Bot Token</label><input type="password" class="form-control" value="••••••••••••••••••••"><div class="form-text">從 @BotFather 取得</div></div>
+      <div class="mb-3"><label class="form-label fw-semibold">Telegram Chat ID</label><input type="text" class="form-control" placeholder="你的 chat ID"></div>
+      <div class="mb-3"><label class="form-label fw-semibold">提早提醒天數（預設）</label><div class="input-group" style="max-width:160px"><input type="number" class="form-control" value="7"><span class="input-group-text">天</span></div></div>
+      <div class="mb-3"><label class="form-label fw-semibold">每日推播時間</label><input type="time" class="form-control" value="08:30" style="max-width:160px"></div>
+      <div class="mb-4"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked><label class="form-check-label">啟用每日提醒</label></div></div>
+      <button class="btn btn-primary">儲存設定</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal：新增訂單 -->
+<div class="modal fade" id="newOrderModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增訂單</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">客戶</label>
+            <select class="form-select" id="customerSelect" onchange="updateBranches()">
+              <option value="">— 選擇客戶 —</option>
+              <option value="隆衣">隆衣</option>
+              <option value="晟豐五金">晟豐五金</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">院區 / 分點</label>
+            <select class="form-select" id="branchSelect"><option>— 先選客戶 —</option></select>
+          </div>
+          <div class="col-md-2"><label class="form-label">交貨日期</label><input type="date" class="form-control"></div>
+          <div class="col-md-2"><label class="form-label">提早提醒天數</label><div class="input-group"><input type="number" class="form-control" value="7"><span class="input-group-text">天</span></div></div>
+        </div>
+
+        <!-- 品項區塊 -->
+        <div class="fw-semibold mb-2">品項明細</div>
+        <div id="orderItems">
+          <!-- 品項 1 -->
+          <div class="order-item border rounded p-3 mb-3 bg-light" data-item="1">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="fw-semibold text-primary small">品項 1</div>
+              <button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeItem(this)" style="display:none">移除品項</button>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-md-6"><label class="form-label small">品名</label><input type="text" class="form-control form-control-sm" placeholder="e.g. 手術衣"></div>
+            </div>
+            <!-- 尺寸列表 -->
+            <div class="size-list">
+              <div class="row g-2 align-items-center mb-1 size-row">
+                <div class="col-md-4"><label class="form-label small">尺寸</label><input type="text" class="form-control form-control-sm" placeholder="e.g. M"></div>
+                <div class="col-md-3"><label class="form-label small">數量</label><input type="number" class="form-control form-control-sm" placeholder="e.g. 100"></div>
+                <div class="col-md-2 pt-4"><button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSize(this)" style="display:none"><i class="bi bi-x"></i></button></div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addSize(this)"><i class="bi bi-plus"></i> 新增尺寸</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItem()"><i class="bi bi-plus-lg"></i> 新增品項</button>
+
+        <div class="mt-3"><label class="form-label">備註</label><textarea class="form-control" rows="2" placeholder="特殊要求、規格說明..."></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">建立訂單</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：新增半成品品項 -->
+<div class="modal fade" id="newItemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增半成品品項</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label">品項名稱</label><input type="text" class="form-control" placeholder="e.g. 車縫"></div>
+          <div class="col-md-6">
+            <label class="form-label">負責人員</label>
+            <select class="form-select">
+              <option>— 選擇人員 —</option>
+              <option>王大明（裁縫師）</option>
+              <option>陳小芬（車縫師）</option>
+              <option>李志遠（品管）</option>
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">預計完成日</label><input type="date" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">初始狀態</label><select class="form-select"><option>未開始</option><option>製作中</option><option>待檢驗</option><option>完成</option></select></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：新增客戶 -->
+<div class="modal fade" id="newCustomerModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增客戶</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label">公司名稱</label><input type="text" class="form-control" placeholder="e.g. 隆衣"></div>
+          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control" placeholder="e.g. 陳志明"></div>
+          <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control" placeholder="e.g. 0912-345-678"></div>
+          <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control" placeholder="e.g. service@company.com"></div>
+          <div class="col-md-6"><label class="form-label">LINE ID / 群組</label><input type="text" class="form-control" placeholder="e.g. @lungyi"></div>
+          <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control" placeholder="e.g. 台北市忠孝東路三段100號"></div>
+          <div class="col-12">
+            <label class="form-label">院區 / 分點 <span class="text-muted small">（可留空，之後再新增）</span></label>
+            <div id="branchInputs">
+              <div class="input-group mb-2"><input type="text" class="form-control" placeholder="院區名稱，e.g. 忠孝院區"><button class="btn btn-outline-secondary" type="button" onclick="addBranchInput()"><i class="bi bi-plus"></i></button></div>
+            </div>
+          </div>
+          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增客戶</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：新增院區 -->
+<div class="modal fade" id="newBranchModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增院區 / 分點</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">院區名稱</label><input type="text" class="form-control" placeholder="e.g. 萬芳院區"></div>
+          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">LINE ID</label><input type="text" class="form-control"></div>
+          <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control"></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：通訊錄新增聯絡人 -->
+<div class="modal fade" id="newContactModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增聯絡人</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <!-- 類型選擇 -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">類型</label>
+          <div class="d-flex gap-2">
+            <input type="radio" class="btn-check" name="contactType" id="ct-customer" value="客戶" onchange="switchContactType('客戶')" checked>
+            <label class="btn btn-outline-primary" for="ct-customer"><i class="bi bi-building me-1"></i>客戶</label>
+            <input type="radio" class="btn-check" name="contactType" id="ct-branch" value="院區" onchange="switchContactType('院區')">
+            <label class="btn btn-outline-primary" for="ct-branch"><i class="bi bi-hospital me-1"></i>院區 / 分點</label>
+            <input type="radio" class="btn-check" name="contactType" id="ct-staff" value="人員" onchange="switchContactType('人員')">
+            <label class="btn btn-outline-primary" for="ct-staff"><i class="bi bi-person me-1"></i>人員</label>
+          </div>
+        </div>
+
+        <!-- 客戶欄位 -->
+        <div id="ctFields-客戶">
+          <div class="row g-3">
+            <div class="col-12"><label class="form-label">公司名稱</label><input type="text" class="form-control" placeholder="e.g. 隆衣"></div>
+            <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control" placeholder="e.g. 0912-345-678"></div>
+            <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">LINE ID / 群組</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          </div>
+        </div>
+
+        <!-- 院區欄位 -->
+        <div id="ctFields-院區" style="display:none">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">所屬客戶</label>
+              <select class="form-select">
+                <option value="">— 選擇客戶 —</option>
+                <option>隆衣</option>
+                <option>晟豐五金</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">院區 / 分點名稱</label><input type="text" class="form-control" placeholder="e.g. 忠孝院區"></div>
+            <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">LINE ID</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          </div>
+        </div>
+
+        <!-- 人員欄位 -->
+        <div id="ctFields-人員" style="display:none">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">姓名</label><input type="text" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">職稱</label><input type="text" class="form-control" placeholder="e.g. 車縫師"></div>
+            <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">LINE ID</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control"></div>
+            <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">儲存</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：新增人員 -->
+<div class="modal fade" id="newStaffModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增人員</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">姓名</label><input type="text" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">職稱</label><input type="text" class="form-control" placeholder="e.g. 車縫師"></div>
+          <div class="col-md-6"><label class="form-label">聯絡電話</label><input type="text" class="form-control"></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增人員</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+  const branches = { '隆衣': ['忠孝院區','三總院區','板橋院區'], '晟豐五金': [] };
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    const map = { dashboard:0, orders:1, detail:1, phonebook:2, customers:3, staff:4, notify:5 };
+    document.querySelectorAll('.sidebar .nav-link')[map[id]].classList.add('active');
+    return false;
+  }
+
+  function updateBranches() {
+    const customer = document.getElementById('customerSelect').value;
+    const sel = document.getElementById('branchSelect');
+    sel.innerHTML = '';
+    const list = branches[customer] || [];
+    if (list.length === 0) {
+      sel.innerHTML = '<option>（無分院區）</option>';
+    } else {
+      list.forEach(b => { const o = document.createElement('option'); o.text = b; sel.add(o); });
+    }
+  }
+
+  let itemCount = 1;
+
+  function addItem() {
+    itemCount++;
+    const container = document.getElementById('orderItems');
+    const div = document.createElement('div');
+    div.className = 'order-item border rounded p-3 mb-3 bg-light';
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-semibold text-primary small">品項 ${itemCount}</div>
+        <button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeItem(this)">移除品項</button>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-6"><label class="form-label small">品名</label><input type="text" class="form-control form-control-sm" placeholder="e.g. 病人服"></div>
+      </div>
+      <div class="size-list">
+        <div class="row g-2 align-items-center mb-1 size-row">
+          <div class="col-md-4"><label class="form-label small">尺寸</label><input type="text" class="form-control form-control-sm" placeholder="e.g. M"></div>
+          <div class="col-md-3"><label class="form-label small">數量</label><input type="number" class="form-control form-control-sm" placeholder="e.g. 100"></div>
+          <div class="col-md-2 pt-4"><button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSize(this)" style="display:none"><i class="bi bi-x"></i></button></div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addSize(this)"><i class="bi bi-plus"></i> 新增尺寸</button>
+    `;
+    container.appendChild(div);
+    refreshRemoveButtons();
+  }
+
+  function removeItem(btn) {
+    btn.closest('.order-item').remove();
+    refreshRemoveButtons();
+  }
+
+  function addSize(btn) {
+    const sizeList = btn.previousElementSibling;
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center mb-1 size-row';
+    row.innerHTML = `
+      <div class="col-md-4"><label class="form-label small">尺寸</label><input type="text" class="form-control form-control-sm" placeholder="e.g. L"></div>
+      <div class="col-md-3"><label class="form-label small">數量</label><input type="number" class="form-control form-control-sm" placeholder="e.g. 50"></div>
+      <div class="col-md-2 pt-4"><button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSize(this)"><i class="bi bi-x"></i></button></div>
+    `;
+    sizeList.appendChild(row);
+    refreshSizeRemoveButtons(sizeList);
+  }
+
+  function removeSize(btn) {
+    const row = btn.closest('.size-row');
+    const sizeList = row.parentElement;
+    row.remove();
+    refreshSizeRemoveButtons(sizeList);
+  }
+
+  function refreshRemoveButtons() {
+    const items = document.querySelectorAll('#orderItems .order-item');
+    items.forEach(item => {
+      const btn = item.querySelector('.btn-outline-danger');
+      if (btn) btn.style.display = items.length > 1 ? '' : 'none';
+    });
+  }
+
+  function refreshSizeRemoveButtons(sizeList) {
+    const rows = sizeList.querySelectorAll('.size-row');
+    rows.forEach(row => {
+      const btn = row.querySelector('.btn-outline-danger');
+      if (btn) btn.style.display = rows.length > 1 ? '' : 'none';
+    });
+  }
+
+  function switchContactType(type) {
+    ['客戶','院區','人員'].forEach(t => {
+      document.getElementById('ctFields-' + t).style.display = (t === type) ? '' : 'none';
+    });
+  }
+
+  function filterPhonebook(keyword) {
+    const kw = (keyword || document.querySelector('#phonebook input').value || '').toLowerCase();
+    const type = document.querySelector('#phonebook select').value;
+    document.querySelectorAll('.pb-card').forEach(card => {
+      const matchKw = !kw || card.dataset.search.toLowerCase().includes(kw);
+      const matchType = !type || card.dataset.type === type;
+      card.style.display = (matchKw && matchType) ? '' : 'none';
+    });
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.createElement('div');
+      toast.className = 'position-fixed bottom-0 end-0 m-3 alert alert-success py-2 px-3';
+      toast.style.zIndex = 9999;
+      toast.textContent = '已複製：' + text;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    });
+  }
+
+  function addBranchInput() {
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = '<input type="text" class="form-control" placeholder="院區名稱"><button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>';
+    document.getElementById('branchInputs').appendChild(div);
+  }
+</script>
+</body>
+</html>
