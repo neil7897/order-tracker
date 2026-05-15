@@ -92,6 +92,32 @@ def get_order(oid: int, db: Session = Depends(get_db)):
     return _order_dict(o)
 
 
+@router.put("/{oid}")
+def update_order(oid: int, data: OrderIn, db: Session = Depends(get_db)):
+    o = db.get(Order, oid)
+    if not o:
+        raise HTTPException(404)
+    if db.query(Order).filter(Order.order_number == data.order_number, Order.id != oid).first():
+        raise HTTPException(400, detail=f"訂單號 {data.order_number} 已存在")
+    o.order_number  = data.order_number
+    o.customer_id   = data.customer_id
+    o.branch_id     = data.branch_id
+    o.delivery_date = data.delivery_date
+    o.reminder_days = data.reminder_days
+    o.notes         = data.notes
+    for item in list(o.items):
+        db.delete(item)
+    db.flush()
+    for item_data in data.items:
+        item = OrderItem(order_id=o.id, product_name=item_data.product_name)
+        db.add(item)
+        db.flush()
+        for s in item_data.sizes:
+            db.add(OrderItemSize(item_id=item.id, size=s.size, quantity=s.quantity))
+    db.commit()
+    return {"ok": True}
+
+
 @router.put("/{oid}/status")
 def update_order_status(oid: int, data: StatusUpdate, db: Session = Depends(get_db)):
     o = db.get(Order, oid)

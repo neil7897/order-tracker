@@ -89,7 +89,7 @@ function renderOrders(list) {
         <td>${o.delivery_date}</td>
         <td><span class="badge ${URGENCY_BADGE[o.urgency]} rounded-pill">${o.days_left >= 0 ? o.days_left + " 天" : "已逾期"}</span></td>
         <td><span class="badge ${STATUS_BADGE[o.status] || "bg-secondary"}">${o.status}</span></td>
-        <td><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a></td>
+        <td><div class="d-flex gap-1"><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a><a href="javascript:void(0)" onclick="deleteOrder(${o.id})" class="btn btn-sm btn-outline-danger">刪除</a></div></td>
       </tr>`;
   });
 }
@@ -187,6 +187,92 @@ async function addNote(pid) {
   await openOrder(currentOrder.id);
 }
 
+// ── 訂單編輯 / 刪除 ──────────────────────────────────────
+let editOrderId = null;
+
+function editCurrentOrder() {
+  if (!currentOrder) return;
+  editOrderId = currentOrder.id;
+  document.querySelector("#newOrderModal .modal-title").textContent = "編輯訂單";
+  document.querySelector("#newOrderModal .modal-footer .btn-primary").textContent = "儲存變更";
+  document.getElementById("order-number").value   = currentOrder.order_number;
+  document.getElementById("order-delivery").value = currentOrder.delivery_date;
+  document.getElementById("order-reminder").value = currentOrder.reminder_days;
+  document.getElementById("order-notes").value    = currentOrder.notes || "";
+  document.getElementById("customerSelect").value = currentOrder.customer_id;
+  updateBranches();
+  document.getElementById("branchSelect").value   = currentOrder.branch_id || "";
+  populateOrderItems(currentOrder.items);
+  new bootstrap.Modal(document.getElementById("newOrderModal")).show();
+}
+
+async function deleteCurrentOrder() {
+  if (!currentOrder) return;
+  if (!confirm(`確定刪除訂單 ${currentOrder.order_number}？此操作無法復原。`)) return;
+  try {
+    await api("DELETE", `/api/orders/${currentOrder.id}`);
+    currentOrder = null;
+    showPage("orders");
+    loadOrders();
+    loadDashboard();
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
+async function deleteOrder(id) {
+  const order = allOrders.find(o => o.id === id);
+  if (!confirm(`確定刪除訂單 ${order?.order_number || id}？此操作無法復原。`)) return;
+  try {
+    await api("DELETE", `/api/orders/${id}`);
+    loadOrders();
+    loadDashboard();
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
+function populateOrderItems(items) {
+  const container = document.getElementById('orderItems');
+  container.innerHTML = '';
+  itemCount = 0;
+  const list = items && items.length ? items : [{ product_name: '', sizes: [] }];
+  list.forEach(item => {
+    itemCount++;
+    const div = document.createElement('div');
+    div.className = 'order-item border rounded p-3 mb-3 bg-light';
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-semibold text-primary small">品項 ${itemCount}</div>
+        <button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeItem(this)">移除品項</button>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-6"><label class="form-label small">品名</label><input type="text" class="form-control form-control-sm" placeholder="e.g. 手術衣"></div>
+      </div>
+      <div class="size-list"></div>
+      <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addSize(this)"><i class="bi bi-plus"></i> 新增尺寸</button>
+    `;
+    div.querySelector('input[type=text]').value = item.product_name || '';
+    const sizeList = div.querySelector('.size-list');
+    const sizes = item.sizes && item.sizes.length ? item.sizes : [{ size: '', quantity: 0 }];
+    sizes.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'row g-2 align-items-center mb-1 size-row';
+      row.innerHTML = `
+        <div class="col-md-4"><label class="form-label small">尺寸</label><input type="text" class="form-control form-control-sm" placeholder="e.g. M"></div>
+        <div class="col-md-3"><label class="form-label small">數量</label><input type="number" class="form-control form-control-sm" placeholder="e.g. 100"></div>
+        <div class="col-md-2 pt-4"><button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSize(this)"><i class="bi bi-x"></i></button></div>
+      `;
+      row.querySelector('input[type=text]').value = s.size || '';
+      row.querySelector('input[type=number]').value = s.quantity || 0;
+      sizeList.appendChild(row);
+    });
+    container.appendChild(div);
+    refreshSizeRemoveButtons(sizeList);
+  });
+  refreshRemoveButtons();
+}
+
 // ── 新增訂單 ─────────────────────────────────────────────
 async function submitOrder() {
   const orderNumber    = document.getElementById("order-number").value.trim();
@@ -212,20 +298,28 @@ async function submitOrder() {
     items.push({ product_name: name, sizes });
   });
 
+  const payload = {
+    order_number: orderNumber,
+    customer_id: parseInt(customerSelect.value),
+    branch_id: branchSelect.value ? parseInt(branchSelect.value) : null,
+    delivery_date: deliveryDate,
+    reminder_days: reminderDays,
+    notes, items,
+  };
   try {
-    await api("POST", "/api/orders", {
-      order_number: orderNumber,
-      customer_id: parseInt(customerSelect.value),
-      branch_id: branchSelect.value ? parseInt(branchSelect.value) : null,
-      delivery_date: deliveryDate,
-      reminder_days: reminderDays,
-      notes, items,
-    });
+    if (editOrderId) {
+      await api("PUT", `/api/orders/${editOrderId}`, payload);
+    } else {
+      await api("POST", "/api/orders", payload);
+    }
     bootstrap.Modal.getInstance(document.getElementById("newOrderModal")).hide();
+    if (editOrderId && currentOrder?.id === editOrderId) {
+      await openOrder(editOrderId);
+    }
     loadOrders();
     loadDashboard();
   } catch(e) {
-    alert("建立失敗：" + e.message);
+    alert("儲存失敗：" + e.message);
   }
 }
 
@@ -549,6 +643,36 @@ async function submitContact() {
 
 // ── 初始化 ────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("newOrderModal").addEventListener("hidden.bs.modal", () => {
+    editOrderId = null;
+    document.querySelector("#newOrderModal .modal-title").textContent = "新增訂單";
+    document.querySelector("#newOrderModal .modal-footer .btn-primary").textContent = "建立訂單";
+    document.getElementById("order-number").value   = "";
+    document.getElementById("order-delivery").value = "";
+    document.getElementById("order-reminder").value = "7";
+    document.getElementById("order-notes").value    = "";
+    document.getElementById("customerSelect").value = "";
+    document.getElementById("branchSelect").innerHTML = '<option value="">— 先選客戶 —</option>';
+    document.getElementById("orderItems").innerHTML = `
+      <div class="order-item border rounded p-3 mb-3 bg-light" data-item="1">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold text-primary small">品項 1</div>
+          <button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeItem(this)" style="display:none">移除品項</button>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6"><label class="form-label small">品名</label><input type="text" class="form-control form-control-sm" placeholder="e.g. 手術衣"></div>
+        </div>
+        <div class="size-list">
+          <div class="row g-2 align-items-center mb-1 size-row">
+            <div class="col-md-4"><label class="form-label small">尺寸</label><input type="text" class="form-control form-control-sm" placeholder="e.g. M"></div>
+            <div class="col-md-3"><label class="form-label small">數量</label><input type="number" class="form-control form-control-sm" placeholder="e.g. 100"></div>
+            <div class="col-md-2 pt-4"><button type="button" class="btn btn-sm btn-outline-danger py-0" onclick="removeSize(this)" style="display:none"><i class="bi bi-x"></i></button></div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addSize(this)"><i class="bi bi-plus"></i> 新增尺寸</button>
+      </div>`;
+    itemCount = 1;
+  });
   document.getElementById("newBranchModal").addEventListener("hidden.bs.modal", () => {
     editBranchId = null;
     document.querySelector("#newBranchModal .modal-title").textContent = "新增院區 / 分點";
