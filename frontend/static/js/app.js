@@ -287,18 +287,20 @@ function updateBranches() {
 let editCustomerId = null;
 
 function editCustomer(id) {
-  const c = allCustomers.find(x => x.id === id);
-  if (!c) return;
-  editCustomerId = id;
-  document.getElementById("cust-name").value    = c.name || "";
-  document.getElementById("cust-contact").value = c.contact_name || "";
-  document.getElementById("cust-phone").value   = c.phone || "";
-  document.getElementById("cust-email").value   = c.email || "";
-  document.getElementById("cust-line").value    = c.line_id || "";
-  document.getElementById("cust-address").value = c.address || "";
-  document.getElementById("cust-notes").value   = c.notes || "";
-  document.querySelector("#newCustomerModal .modal-title").textContent = "編輯客戶";
-  new bootstrap.Modal(document.getElementById("newCustomerModal")).show();
+  try {
+    const c = allCustomers.find(x => x.id === id);
+    if (!c) { alert("找不到客戶 id=" + id); return; }
+    editCustomerId = id;
+    document.getElementById("cust-name").value    = c.name || "";
+    document.getElementById("cust-contact").value = c.contact_name || "";
+    document.getElementById("cust-phone").value   = c.phone || "";
+    document.getElementById("cust-email").value   = c.email || "";
+    document.getElementById("cust-line").value    = c.line_id || "";
+    document.getElementById("cust-address").value = c.address || "";
+    document.getElementById("cust-notes").value   = c.notes || "";
+    document.querySelector("#newCustomerModal .modal-title").textContent = "編輯客戶";
+    new bootstrap.Modal(document.getElementById("newCustomerModal")).show();
+  } catch(e) { alert("editCustomer 錯誤：" + e.message); }
 }
 
 async function submitCustomer() {
@@ -373,15 +375,17 @@ function populateStaffSelects() {
 let editStaffId = null;
 
 function editStaff(id) {
-  const s = allStaff.find(x => x.id === id);
-  if (!s) return;
-  editStaffId = id;
-  document.getElementById("staff-name").value  = s.name || "";
-  document.getElementById("staff-title").value = s.title || "";
-  document.getElementById("staff-phone").value = s.phone || "";
-  document.getElementById("staff-notes").value = s.notes || "";
-  document.querySelector("#newStaffModal .modal-title").textContent = "編輯人員";
-  new bootstrap.Modal(document.getElementById("newStaffModal")).show();
+  try {
+    const s = allStaff.find(x => x.id === id);
+    if (!s) { alert("找不到人員 id=" + id); return; }
+    editStaffId = id;
+    document.getElementById("staff-name").value  = s.name || "";
+    document.getElementById("staff-title").value = s.title || "";
+    document.getElementById("staff-phone").value = s.phone || "";
+    document.getElementById("staff-notes").value = s.notes || "";
+    document.querySelector("#newStaffModal .modal-title").textContent = "編輯人員";
+    new bootstrap.Modal(document.getElementById("newStaffModal")).show();
+  } catch(e) { alert("editStaff 錯誤：" + e.message); }
 }
 
 async function submitStaff() {
