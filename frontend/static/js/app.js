@@ -331,11 +331,16 @@ async function submitBranch() {
   const fields = ["branch-name","branch-contact","branch-phone","branch-email","branch-line","branch-address","branch-notes"];
   const [name, contact_name, phone, email, line_id, address, notes] = fields.map(id =>
     document.getElementById(id)?.value.trim() || "");
-  if (!name || !addBranchCustomerId) return;
-  await api("POST", `/api/customers/${addBranchCustomerId}/branches`,
-    { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
-  bootstrap.Modal.getInstance(document.getElementById("newBranchModal")).hide();
-  loadCustomers();
+  if (!name) return alert("院區名稱必填");
+  if (!addBranchCustomerId) return alert("未指定客戶");
+  try {
+    await api("POST", `/api/customers/${addBranchCustomerId}/branches`,
+      { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
+    bootstrap.Modal.getInstance(document.getElementById("newBranchModal")).hide();
+    loadCustomers();
+  } catch(e) {
+    alert("新增失敗：" + e.message);
+  }
 }
 
 // ── 人員管理 ─────────────────────────────────────────────

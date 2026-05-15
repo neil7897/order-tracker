@@ -401,16 +401,16 @@
       <div class="modal-header"><h5 class="modal-title">新增院區 / 分點</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">院區名稱</label><input type="text" class="form-control" placeholder="e.g. 萬芳院區"></div>
-          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">LINE ID</label><input type="text" class="form-control"></div>
-          <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control"></div>
-          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">院區名稱</label><input type="text" id="branch-name" class="form-control" placeholder="e.g. 萬芳院區"></div>
+          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" id="branch-contact" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">電話</label><input type="text" id="branch-phone" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Email</label><input type="email" id="branch-email" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">LINE ID</label><input type="text" id="branch-line" class="form-control"></div>
+          <div class="col-12"><label class="form-label">地址</label><input type="text" id="branch-address" class="form-control"></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea id="branch-notes" class="form-control" rows="2"></textarea></div>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增</button></div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="submitBranch()">新增</button></div>
     </div>
   </div>
 </div>
@@ -505,7 +505,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/app.js?v=3"></script>
+<script src="/static/js/app.js?v=4"></script>
 <script>
   const branches = { '隆衣': ['忠孝院區','三總院區','板橋院區'], '晟豐五金': [] };
 
