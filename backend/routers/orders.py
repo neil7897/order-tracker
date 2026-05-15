@@ -170,3 +170,23 @@ def add_production_note(pid: int, data: ProductionNoteIn, db: Session = Depends(
     db.commit()
     db.refresh(n)
     return {"id": n.id}
+
+
+@router.delete("/production/{pid}")
+def delete_production_item(pid: int, db: Session = Depends(get_db)):
+    p = db.get(ProductionItem, pid)
+    if not p:
+        raise HTTPException(404)
+    db.delete(p)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/production/notes/{nid}")
+def delete_production_note(nid: int, db: Session = Depends(get_db)):
+    n = db.get(ProductionNote, nid)
+    if not n:
+        raise HTTPException(404)
+    db.delete(n)
+    db.commit()
+    return {"ok": True}

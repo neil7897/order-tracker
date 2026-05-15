@@ -142,7 +142,13 @@ function renderProduction(items) {
   container.innerHTML = "";
   items.forEach(p => {
     const notesHtml = p.notes.map(n =>
-      `<div class="timeline-note"><div class="text-muted" style="font-size:.8rem">${n.created_at}</div><div>${n.content}</div></div>`
+      `<div class="timeline-note d-flex justify-content-between align-items-start">
+        <div>
+          <div class="text-muted" style="font-size:.8rem">${n.created_at}</div>
+          <div>${n.content}</div>
+        </div>
+        <button class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="deleteProductionNote(${n.id})" title="刪除備註"><i class="bi bi-x-circle" style="font-size:.85rem"></i></button>
+      </div>`
     ).join("");
     const isActive = p.status !== "完成";
     const border = p.status === "製作中" ? " border border-warning" : "";
@@ -157,6 +163,7 @@ function renderProduction(items) {
                   `<option${s === p.status ? " selected" : ""}>${s}</option>`).join("")}
               </select>
               <span class="badge ${PROD_BADGE[p.status] || "bg-secondary"}">${p.status}</span>
+              <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteProductionItem(${p.id})" title="刪除此品項"><i class="bi bi-trash"></i></button>
             </div>
           </div>
           ${p.staff_name ? `<div class="d-flex align-items-center gap-2 mb-2"><div class="text-muted small">負責：</div><div class="avatar avatar-sm">${p.staff_name[0]}</div><div class="small">${p.staff_name}</div></div>` : ""}
@@ -172,6 +179,26 @@ function renderProduction(items) {
         </div>
       </div>`;
   });
+}
+
+async function deleteProductionItem(pid) {
+  if (!confirm("確定刪除此半成品品項？備註也會一併刪除，此操作無法復原。")) return;
+  try {
+    await api("DELETE", `/api/orders/production/${pid}`);
+    await openOrder(currentOrder.id);
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
+async function deleteProductionNote(nid) {
+  if (!confirm("確定刪除此備註？")) return;
+  try {
+    await api("DELETE", `/api/orders/production/notes/${nid}`);
+    await openOrder(currentOrder.id);
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
 }
 
 async function updateProdStatus(pid, status) {
