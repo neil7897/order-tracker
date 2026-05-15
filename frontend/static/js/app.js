@@ -228,7 +228,7 @@ function renderCustomers() {
   container.innerHTML = "";
   allCustomers.forEach(c => {
     const branchTags = c.branches.map(b =>
-      `<span class="branch-tag">${b.name}</span>`).join("");
+      `<span class="branch-tag" style="cursor:pointer" onclick="editBranch(${b.id})">${b.name} <i class="bi bi-pencil" style="font-size:.65rem"></i></span>`).join("");
     container.innerHTML += `
       <div class="col-12">
         <div class="card p-4">
@@ -322,9 +322,33 @@ async function submitCustomer() {
 }
 
 let addBranchCustomerId = null;
+let editBranchId = null;
+
 function openAddBranch(cid) {
   addBranchCustomerId = cid;
+  editBranchId = null;
   new bootstrap.Modal(document.getElementById("newBranchModal")).show();
+}
+
+function editBranch(bid) {
+  try {
+    let branch = null;
+    allCustomers.forEach(c => {
+      const b = c.branches.find(x => x.id === bid);
+      if (b) { branch = b; addBranchCustomerId = c.id; }
+    });
+    if (!branch) { alert("找不到院區 id=" + bid); return; }
+    editBranchId = bid;
+    document.getElementById("branch-name").value    = branch.name || "";
+    document.getElementById("branch-contact").value = branch.contact_name || "";
+    document.getElementById("branch-phone").value   = branch.phone || "";
+    document.getElementById("branch-email").value   = branch.email || "";
+    document.getElementById("branch-line").value    = branch.line_id || "";
+    document.getElementById("branch-address").value = branch.address || "";
+    document.getElementById("branch-notes").value   = branch.notes || "";
+    document.querySelector("#newBranchModal .modal-title").textContent = "編輯院區 / 分點";
+    new bootstrap.Modal(document.getElementById("newBranchModal")).show();
+  } catch(e) { alert("editBranch 錯誤：" + e.message); }
 }
 
 async function submitBranch() {
@@ -334,12 +358,17 @@ async function submitBranch() {
   if (!name) return alert("院區名稱必填");
   if (!addBranchCustomerId) return alert("未指定客戶");
   try {
-    await api("POST", `/api/customers/${addBranchCustomerId}/branches`,
-      { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
+    if (editBranchId) {
+      await api("PUT", `/api/customers/branches/${editBranchId}`,
+        { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
+    } else {
+      await api("POST", `/api/customers/${addBranchCustomerId}/branches`,
+        { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
+    }
     bootstrap.Modal.getInstance(document.getElementById("newBranchModal")).hide();
     loadCustomers();
   } catch(e) {
-    alert("新增失敗：" + e.message);
+    alert("儲存失敗：" + e.message);
   }
 }
 
@@ -463,6 +492,10 @@ async function submitContact() {
 
 // ── 初始化 ────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("newBranchModal").addEventListener("hidden.bs.modal", () => {
+    editBranchId = null;
+    document.querySelector("#newBranchModal .modal-title").textContent = "新增院區 / 分點";
+  });
   document.getElementById("newCustomerModal").addEventListener("hidden.bs.modal", () => {
     editCustomerId = null;
     document.querySelector("#newCustomerModal .modal-title").textContent = "新增客戶";
