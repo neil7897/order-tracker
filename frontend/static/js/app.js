@@ -191,9 +191,12 @@ async function submitOrder() {
   const reminderDays   = parseInt(document.getElementById("order-reminder").value) || 7;
   const notes          = document.getElementById("order-notes").value;
 
+  if (!customerSelect.value) return alert("請選擇客戶");
+  if (!deliveryDate) return alert("請填寫交貨日期");
+
   const items = [];
   document.querySelectorAll(".order-item").forEach(el => {
-    const name = el.querySelector("input[placeholder*='手術衣'], input[placeholder*='病人服'], input[type=text]").value.trim();
+    const name = el.querySelector("input[type=text]").value.trim();
     if (!name) return;
     const sizes = [];
     el.querySelectorAll(".size-row").forEach(row => {
@@ -203,16 +206,20 @@ async function submitOrder() {
     items.push({ product_name: name, sizes });
   });
 
-  await api("POST", "/api/orders", {
-    customer_id: parseInt(customerSelect.value),
-    branch_id: branchSelect.value ? parseInt(branchSelect.value) : null,
-    delivery_date: deliveryDate,
-    reminder_days: reminderDays,
-    notes, items,
-  });
-  bootstrap.Modal.getInstance(document.getElementById("newOrderModal")).hide();
-  loadOrders();
-  loadDashboard();
+  try {
+    await api("POST", "/api/orders", {
+      customer_id: parseInt(customerSelect.value),
+      branch_id: branchSelect.value ? parseInt(branchSelect.value) : null,
+      delivery_date: deliveryDate,
+      reminder_days: reminderDays,
+      notes, items,
+    });
+    bootstrap.Modal.getInstance(document.getElementById("newOrderModal")).hide();
+    loadOrders();
+    loadDashboard();
+  } catch(e) {
+    alert("建立失敗：" + e.message);
+  }
 }
 
 // ── 客戶管理 ─────────────────────────────────────────────
