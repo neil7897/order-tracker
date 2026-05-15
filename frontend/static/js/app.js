@@ -284,17 +284,38 @@ function updateBranches() {
   });
 }
 
+let editCustomerId = null;
+
+function editCustomer(id) {
+  const c = allCustomers.find(x => x.id === id);
+  if (!c) return;
+  editCustomerId = id;
+  document.getElementById("cust-name").value    = c.name || "";
+  document.getElementById("cust-contact").value = c.contact_name || "";
+  document.getElementById("cust-phone").value   = c.phone || "";
+  document.getElementById("cust-email").value   = c.email || "";
+  document.getElementById("cust-line").value    = c.line_id || "";
+  document.getElementById("cust-address").value = c.address || "";
+  document.getElementById("cust-notes").value   = c.notes || "";
+  document.querySelector("#newCustomerModal .modal-title").textContent = "編輯客戶";
+  new bootstrap.Modal(document.getElementById("newCustomerModal")).show();
+}
+
 async function submitCustomer() {
   const fields = ["cust-name","cust-contact","cust-phone","cust-email","cust-line","cust-address","cust-notes"];
   const [name, contact_name, phone, email, line_id, address, notes] = fields.map(id =>
     document.getElementById(id)?.value.trim() || "");
   if (!name) return alert("公司名稱必填");
   try {
-    await api("POST", "/api/customers", { name, contact_name, phone, email, line_id, address, notes });
+    if (editCustomerId) {
+      await api("PUT", `/api/customers/${editCustomerId}`, { name, contact_name, phone, email, line_id, address, notes });
+    } else {
+      await api("POST", "/api/customers", { name, contact_name, phone, email, line_id, address, notes });
+    }
     bootstrap.Modal.getInstance(document.getElementById("newCustomerModal")).hide();
     loadCustomers();
   } catch (e) {
-    alert("新增失敗：" + e.message);
+    alert("儲存失敗：" + e.message);
   }
 }
 
@@ -349,17 +370,35 @@ function populateStaffSelects() {
   });
 }
 
+let editStaffId = null;
+
+function editStaff(id) {
+  const s = allStaff.find(x => x.id === id);
+  if (!s) return;
+  editStaffId = id;
+  document.getElementById("staff-name").value  = s.name || "";
+  document.getElementById("staff-title").value = s.title || "";
+  document.getElementById("staff-phone").value = s.phone || "";
+  document.getElementById("staff-notes").value = s.notes || "";
+  document.querySelector("#newStaffModal .modal-title").textContent = "編輯人員";
+  new bootstrap.Modal(document.getElementById("newStaffModal")).show();
+}
+
 async function submitStaff() {
   const fields = ["staff-name","staff-title","staff-phone","staff-email","staff-line","staff-address","staff-notes"];
   const [name, title, phone, email, line_id, address, notes] = fields.map(id =>
     document.getElementById(id)?.value.trim() || "");
   if (!name) return alert("姓名必填");
   try {
-    await api("POST", "/api/staff", { name, title, phone, email, line_id, address, notes });
+    if (editStaffId) {
+      await api("PUT", `/api/staff/${editStaffId}`, { name, title, phone, email, line_id, address, notes });
+    } else {
+      await api("POST", "/api/staff", { name, title, phone, email, line_id, address, notes });
+    }
     bootstrap.Modal.getInstance(document.getElementById("newStaffModal")).hide();
     loadStaff();
   } catch (e) {
-    alert("新增失敗：" + e.message);
+    alert("儲存失敗：" + e.message);
   }
 }
 
@@ -415,6 +454,15 @@ async function submitContact() {
 
 // ── 初始化 ────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("newCustomerModal").addEventListener("hidden.bs.modal", () => {
+    editCustomerId = null;
+    document.querySelector("#newCustomerModal .modal-title").textContent = "新增客戶";
+  });
+  document.getElementById("newStaffModal").addEventListener("hidden.bs.modal", () => {
+    editStaffId = null;
+    document.querySelector("#newStaffModal .modal-title").textContent = "新增人員";
+  });
+
   await loadCustomers();
   await loadStaff();
   await loadOrders();
