@@ -70,7 +70,7 @@ async function loadDashboard() {
 let allOrders = [];
 async function loadOrders() {
   allOrders = await api("GET", "/api/orders");
-  renderOrders(allOrders);
+  filterOrders();
 }
 
 function renderOrders(list) {
@@ -94,14 +94,35 @@ function renderOrders(list) {
   });
 }
 
+let customerOrderFilter = null; // { id, name }
+
 function filterOrders() {
   const kw = document.getElementById("order-search").value.toLowerCase();
   const st = document.getElementById("order-status-filter").value;
   renderOrders(allOrders.filter(o => {
-    const matchKw = !kw || o.order_number.toLowerCase().includes(kw) || o.customer_name.toLowerCase().includes(kw);
-    const matchSt = !st || o.status === st;
-    return matchKw && matchSt;
+    const matchKw  = !kw || o.order_number.toLowerCase().includes(kw) || o.customer_name.toLowerCase().includes(kw);
+    const matchSt  = !st || o.status === st;
+    const matchCust = !customerOrderFilter ||
+      (o.customer_id === customerOrderFilter.id && o.status !== "已完成");
+    return matchKw && matchSt && matchCust;
   }));
+}
+
+function viewCustomerOrders(cid, name) {
+  customerOrderFilter = { id: cid, name };
+  document.getElementById("order-search").value = "";
+  document.getElementById("order-status-filter").value = "";
+  const bar = document.getElementById("order-filter-bar");
+  bar.classList.remove("d-none");
+  document.getElementById("order-filter-label").textContent = `${name} 的未完成訂單`;
+  showPage("orders");
+  filterOrders();
+}
+
+function clearCustomerFilter() {
+  customerOrderFilter = null;
+  document.getElementById("order-filter-bar").classList.add("d-none");
+  filterOrders();
 }
 
 // ── 訂單詳情 ─────────────────────────────────────────────
@@ -368,7 +389,7 @@ function renderCustomers() {
       <div class="col-12">
         <div class="card p-4">
           <div class="d-flex justify-content-between align-items-start mb-3">
-            <div><div class="fw-bold fs-6 mb-1">${c.name}</div><span class="badge bg-light text-dark border">${c.order_count} 筆訂單</span></div>
+            <div><div class="fw-bold fs-6 mb-1">${c.name}</div><span class="badge bg-light text-dark border" style="cursor:pointer" onclick="viewCustomerOrders(${c.id}, '${c.name.replace(/'/g, "\\'")}')" title="查看未完成訂單">${c.order_count} 筆訂單 <i class="bi bi-box-arrow-up-right" style="font-size:.7rem"></i></span></div>
             <button class="btn btn-sm btn-outline-secondary" onclick="editCustomer(${c.id})">編輯</button>
           </div>
           <div class="row g-2 mb-3">

@@ -93,6 +93,12 @@
         </div>
       </div>
     </div>
+    <div id="order-filter-bar" class="alert alert-info py-2 mb-2 d-none">
+      <div class="d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel me-1"></i><span id="order-filter-label"></span></span>
+        <button class="btn btn-sm btn-outline-secondary py-0" onclick="clearCustomerFilter()">清除篩選</button>
+      </div>
+    </div>
     <div class="card">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light"><tr><th>訂單編號</th><th>客戶／院區</th><th>品項</th><th>交貨日</th><th>剩餘</th><th>狀態</th><th></th></tr></thead>
@@ -416,7 +422,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/app.js?v=12"></script>
+<script src="/static/js/app.js?v=13"></script>
 <script>
   function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
