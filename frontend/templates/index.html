@@ -374,22 +374,22 @@
       <div class="modal-header"><h5 class="modal-title">新增客戶</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="row g-3">
-          <div class="col-12"><label class="form-label">公司名稱</label><input type="text" class="form-control" placeholder="e.g. 隆衣"></div>
-          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" class="form-control" placeholder="e.g. 陳志明"></div>
-          <div class="col-md-6"><label class="form-label">電話</label><input type="text" class="form-control" placeholder="e.g. 0912-345-678"></div>
-          <div class="col-md-6"><label class="form-label">Email</label><input type="email" class="form-control" placeholder="e.g. service@company.com"></div>
-          <div class="col-md-6"><label class="form-label">LINE ID / 群組</label><input type="text" class="form-control" placeholder="e.g. @lungyi"></div>
-          <div class="col-12"><label class="form-label">地址</label><input type="text" class="form-control" placeholder="e.g. 台北市忠孝東路三段100號"></div>
+          <div class="col-12"><label class="form-label">公司名稱</label><input type="text" id="cust-name" class="form-control" placeholder="e.g. 隆衣"></div>
+          <div class="col-md-6"><label class="form-label">聯絡人姓名</label><input type="text" id="cust-contact" class="form-control" placeholder="e.g. 陳志明"></div>
+          <div class="col-md-6"><label class="form-label">電話</label><input type="text" id="cust-phone" class="form-control" placeholder="e.g. 0912-345-678"></div>
+          <div class="col-md-6"><label class="form-label">Email</label><input type="email" id="cust-email" class="form-control" placeholder="e.g. service@company.com"></div>
+          <div class="col-md-6"><label class="form-label">LINE ID / 群組</label><input type="text" id="cust-line" class="form-control" placeholder="e.g. @lungyi"></div>
+          <div class="col-12"><label class="form-label">地址</label><input type="text" id="cust-address" class="form-control" placeholder="e.g. 台北市忠孝東路三段100號"></div>
           <div class="col-12">
             <label class="form-label">院區 / 分點 <span class="text-muted small">（可留空，之後再新增）</span></label>
             <div id="branchInputs">
               <div class="input-group mb-2"><input type="text" class="form-control" placeholder="院區名稱，e.g. 忠孝院區"><button class="btn btn-outline-secondary" type="button" onclick="addBranchInput()"><i class="bi bi-plus"></i></button></div>
             </div>
           </div>
-          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea id="cust-notes" class="form-control" rows="2"></textarea></div>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增客戶</button></div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="submitCustomer()">新增客戶</button></div>
     </div>
   </div>
 </div>
@@ -493,13 +493,13 @@
       <div class="modal-header"><h5 class="modal-title">新增人員</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">姓名</label><input type="text" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">職稱</label><input type="text" class="form-control" placeholder="e.g. 車縫師"></div>
-          <div class="col-md-6"><label class="form-label">聯絡電話</label><input type="text" class="form-control"></div>
-          <div class="col-12"><label class="form-label">備註</label><textarea class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">姓名</label><input type="text" id="staff-name" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">職稱</label><input type="text" id="staff-title" class="form-control" placeholder="e.g. 車縫師"></div>
+          <div class="col-md-6"><label class="form-label">聯絡電話</label><input type="text" id="staff-phone" class="form-control"></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea id="staff-notes" class="form-control" rows="2"></textarea></div>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary">新增人員</button></div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="submitStaff()">新增人員</button></div>
     </div>
   </div>
 </div>

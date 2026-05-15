@@ -289,9 +289,13 @@ async function submitCustomer() {
   const [name, contact_name, phone, email, line_id, address, notes] = fields.map(id =>
     document.getElementById(id)?.value.trim() || "");
   if (!name) return alert("公司名稱必填");
-  await api("POST", "/api/customers", { name, contact_name, phone, email, line_id, address, notes });
-  bootstrap.Modal.getInstance(document.getElementById("newCustomerModal")).hide();
-  loadCustomers();
+  try {
+    await api("POST", "/api/customers", { name, contact_name, phone, email, line_id, address, notes });
+    bootstrap.Modal.getInstance(document.getElementById("newCustomerModal")).hide();
+    loadCustomers();
+  } catch (e) {
+    alert("新增失敗：" + e.message);
+  }
 }
 
 let addBranchCustomerId = null;
@@ -350,9 +354,13 @@ async function submitStaff() {
   const [name, title, phone, email, line_id, address, notes] = fields.map(id =>
     document.getElementById(id)?.value.trim() || "");
   if (!name) return alert("姓名必填");
-  await api("POST", "/api/staff", { name, title, phone, email, line_id, address, notes });
-  bootstrap.Modal.getInstance(document.getElementById("newStaffModal")).hide();
-  loadStaff();
+  try {
+    await api("POST", "/api/staff", { name, title, phone, email, line_id, address, notes });
+    bootstrap.Modal.getInstance(document.getElementById("newStaffModal")).hide();
+    loadStaff();
+  } catch (e) {
+    alert("新增失敗：" + e.message);
+  }
 }
 
 // ── 通訊錄 ───────────────────────────────────────────────
