@@ -57,7 +57,7 @@ async function loadDashboard() {
     );
     tbody.innerHTML += `
       <tr>
-        <td><a href="#" onclick="openOrder(${o.id})" class="text-decoration-none fw-semibold">${o.order_number}</a></td>
+        <td><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="text-decoration-none fw-semibold">${o.order_number}</a></td>
         <td>${o.customer_name} ${o.branch_name ? `<span class="branch-tag">${o.branch_name}</span>` : ""}</td>
         <td>${o.delivery_date}</td>
         <td><span class="badge ${URGENCY_BADGE[o.urgency]} rounded-pill">${o.days_left} 天</span></td>
@@ -89,7 +89,7 @@ function renderOrders(list) {
         <td>${o.delivery_date}</td>
         <td><span class="badge ${URGENCY_BADGE[o.urgency]} rounded-pill">${o.days_left >= 0 ? o.days_left + " 天" : "已逾期"}</span></td>
         <td><span class="badge ${STATUS_BADGE[o.status] || "bg-secondary"}">${o.status}</span></td>
-        <td><a href="#" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a></td>
+        <td><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a></td>
       </tr>`;
   });
 }
@@ -107,9 +107,13 @@ function filterOrders() {
 // ── 訂單詳情 ─────────────────────────────────────────────
 let currentOrder = null;
 async function openOrder(id) {
-  currentOrder = await api("GET", `/api/orders/${id}`);
-  renderDetail(currentOrder);
-  showPage("detail");
+  try {
+    currentOrder = await api("GET", `/api/orders/${id}`);
+    renderDetail(currentOrder);
+    showPage("detail");
+  } catch(e) {
+    alert("載入訂單失敗：" + e.message);
+  }
 }
 
 function renderDetail(o) {
