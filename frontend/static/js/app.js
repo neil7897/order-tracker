@@ -480,21 +480,64 @@ async function loadPhonebook() {
   });
 }
 
+// ── 新增半成品品項 ────────────────────────────────────────
+async function submitItem() {
+  const name = document.getElementById("item-name")?.value.trim();
+  if (!name) return alert("品項名稱必填");
+  if (!currentOrder) return alert("未開啟訂單");
+  const staffId     = document.getElementById("item-staff")?.value;
+  const expectedDate = document.getElementById("item-date")?.value;
+  const status      = document.getElementById("item-status")?.value || "未開始";
+  try {
+    await api("POST", `/api/orders/${currentOrder.id}/production`, {
+      name,
+      staff_id: staffId ? parseInt(staffId) : null,
+      expected_date: expectedDate || null,
+      status,
+    });
+    bootstrap.Modal.getInstance(document.getElementById("newItemModal")).hide();
+    await openOrder(currentOrder.id);
+  } catch(e) {
+    alert("新增失敗：" + e.message);
+  }
+}
+
 // ── 通訊錄新增聯絡人 ─────────────────────────────────────
 async function submitContact() {
   const type = document.querySelector('input[name="contactType"]:checked').value;
-  if (type === "客戶") {
-    await submitCustomer();
-  } else if (type === "院區") {
-    const cid = parseInt(document.querySelector("#ctFields-院區 select").value);
-    if (!cid) return alert("請選擇所屬客戶");
-    addBranchCustomerId = cid;
-    await submitBranch();
-  } else {
-    await submitStaff();
+  const g = id => document.getElementById(id)?.value.trim() || "";
+  try {
+    if (type === "客戶") {
+      if (!g("ct-cust-name")) return alert("公司名稱必填");
+      await api("POST", "/api/customers", {
+        name: g("ct-cust-name"), contact_name: g("ct-cust-contact"),
+        phone: g("ct-cust-phone"), email: g("ct-cust-email"),
+        line_id: g("ct-cust-line"), address: g("ct-cust-address"), notes: g("ct-cust-notes"),
+      });
+    } else if (type === "院區") {
+      const cid = parseInt(document.querySelector("#ctFields-院區 select").value);
+      if (!cid) return alert("請選擇所屬客戶");
+      if (!g("ct-branch-name")) return alert("院區名稱必填");
+      await api("POST", `/api/customers/${cid}/branches`, {
+        customer_id: cid, name: g("ct-branch-name"), contact_name: g("ct-branch-contact"),
+        phone: g("ct-branch-phone"), email: g("ct-branch-email"),
+        line_id: g("ct-branch-line"), address: g("ct-branch-address"), notes: g("ct-branch-notes"),
+      });
+    } else {
+      if (!g("ct-staff-name")) return alert("姓名必填");
+      await api("POST", "/api/staff", {
+        name: g("ct-staff-name"), title: g("ct-staff-title"),
+        phone: g("ct-staff-phone"), email: g("ct-staff-email"),
+        line_id: g("ct-staff-line"), address: g("ct-staff-address"), notes: g("ct-staff-notes"),
+      });
+    }
+    bootstrap.Modal.getInstance(document.getElementById("newContactModal")).hide();
+    loadPhonebook();
+    loadCustomers();
+    loadStaff();
+  } catch(e) {
+    alert("新增失敗：" + e.message);
   }
-  bootstrap.Modal.getInstance(document.getElementById("newContactModal")).hide();
-  loadPhonebook();
 }
 
 // ── 初始化 ────────────────────────────────────────────────
