@@ -84,8 +84,8 @@ def get_order(oid: int, db: Session = Depends(get_db)):
     o = (db.query(Order)
          .options(joinedload(Order.customer), joinedload(Order.branch),
                   joinedload(Order.items).joinedload(OrderItem.sizes),
-                  joinedload(Order.production).joinedload(ProductionItem.staff)
-                                            .joinedload(ProductionItem.notes))
+                  joinedload(Order.production).joinedload(ProductionItem.staff),
+                  joinedload(Order.production).joinedload(ProductionItem.notes))
          .filter(Order.id == oid).first())
     if not o:
         raise HTTPException(404)
