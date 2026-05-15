@@ -189,12 +189,14 @@ async function addNote(pid) {
 
 // ── 新增訂單 ─────────────────────────────────────────────
 async function submitOrder() {
+  const orderNumber    = document.getElementById("order-number").value.trim();
   const customerSelect = document.getElementById("customerSelect");
   const branchSelect   = document.getElementById("branchSelect");
   const deliveryDate   = document.getElementById("order-delivery").value;
   const reminderDays   = parseInt(document.getElementById("order-reminder").value) || 7;
   const notes          = document.getElementById("order-notes").value;
 
+  if (!orderNumber) return alert("請填寫採購單號");
   if (!customerSelect.value) return alert("請選擇客戶");
   if (!deliveryDate) return alert("請填寫交貨日期");
 
@@ -212,6 +214,7 @@ async function submitOrder() {
 
   try {
     await api("POST", "/api/orders", {
+      order_number: orderNumber,
       customer_id: parseInt(customerSelect.value),
       branch_id: branchSelect.value ? parseInt(branchSelect.value) : null,
       delivery_date: deliveryDate,

@@ -12,6 +12,7 @@ class OrderItemIn(BaseModel):
     sizes: list[OrderItemSizeIn] = []
 
 class OrderIn(BaseModel):
+    order_number: str
     customer_id: int
     branch_id: Optional[int] = None
     delivery_date: date

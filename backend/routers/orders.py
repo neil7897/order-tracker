@@ -56,11 +56,10 @@ def list_orders(db: Session = Depends(get_db)):
 
 @router.post("")
 def create_order(data: OrderIn, db: Session = Depends(get_db)):
-    last = db.query(Order).order_by(Order.id.desc()).first()
-    num = (last.id + 1) if last else 1
-    order_number = f"#{date.today().year}-{num:03d}"
+    if db.query(Order).filter(Order.order_number == data.order_number).first():
+        raise HTTPException(400, detail=f"訂單號 {data.order_number} 已存在")
     order = Order(
-        order_number=order_number,
+        order_number=data.order_number,
         customer_id=data.customer_id,
         branch_id=data.branch_id,
         delivery_date=data.delivery_date,
