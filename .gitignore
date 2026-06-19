@@ -1,4 +1,5 @@
 ﻿order_tracker.db
+*.bak
 __pycache__/
 *.pyc
 .env

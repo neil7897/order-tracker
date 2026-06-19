@@ -20,7 +20,7 @@ def list_customers(db: Session = Depends(get_db)):
             "order_count": order_count,
             "branches": [{"id": b.id, "name": b.name, "contact_name": b.contact_name,
                           "phone": b.phone, "email": b.email, "line_id": b.line_id,
-                          "address": b.address} for b in c.branches]
+                          "address": b.address, "notes": b.notes} for b in c.branches]
         })
     return result
 

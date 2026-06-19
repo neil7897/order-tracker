@@ -14,7 +14,7 @@ def _days_left(d: date) -> int:
 
 def _order_dict(o: Order) -> dict:
     days = _days_left(o.delivery_date)
-    urgency = "urgent" if days <= 3 else "soon" if days <= 7 else "ok"
+    urgency = "done" if o.status == "已完成" else ("urgent" if days <= 3 else "soon" if days <= 7 else "ok")
     return {
         "id": o.id, "order_number": o.order_number,
         "customer_id": o.customer_id,

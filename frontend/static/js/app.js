@@ -28,6 +28,7 @@ const URGENCY_BADGE = {
   urgent: "badge-urgent",
   soon:   "badge-soon",
   ok:     "badge-ok",
+  done:   "badge-done",
 };
 const DOT_CLASS = {
   "未開始": "dot-pending",
@@ -87,9 +88,9 @@ function renderOrders(list) {
         <td>${o.customer_name} ${o.branch_name ? `<span class="branch-tag">${o.branch_name}</span>` : ""}</td>
         <td>${itemSummary}</td>
         <td>${o.delivery_date}</td>
-        <td><span class="badge ${URGENCY_BADGE[o.urgency]} rounded-pill">${o.days_left >= 0 ? o.days_left + " 天" : "已逾期"}</span></td>
+        <td><span class="badge ${URGENCY_BADGE[o.urgency] || "badge-ok"} rounded-pill">${o.urgency === "done" ? "–" : (o.days_left >= 0 ? o.days_left + " 天" : "已逾期")}</span></td>
         <td><span class="badge ${STATUS_BADGE[o.status] || "bg-secondary"}">${o.status}</span></td>
-        <td><div class="d-flex gap-1"><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a><a href="javascript:void(0)" onclick="deleteOrder(${o.id})" class="btn btn-sm btn-outline-danger">刪除</a></div></td>
+        <td><div class="d-flex gap-1"><a href="javascript:void(0)" onclick="openOrder(${o.id})" class="btn btn-sm btn-outline-secondary">查看</a>${o.status !== "已完成" ? `<a href="javascript:void(0)" onclick="setOrderStatus(${o.id}, '已完成')" class="btn btn-sm btn-outline-success">完成</a>` : `<a href="javascript:void(0)" onclick="setOrderStatus(${o.id}, '製作中')" class="btn btn-sm btn-outline-secondary">重啟</a>`}<a href="javascript:void(0)" onclick="deleteOrder(${o.id})" class="btn btn-sm btn-outline-danger">刪除</a></div></td>
       </tr>`;
   });
 }
@@ -148,6 +149,14 @@ function renderDetail(o) {
   document.getElementById("detail-delivery").textContent = o.delivery_date;
   document.getElementById("detail-reminder").textContent = `${o.reminder_days} 天前`;
   document.getElementById("detail-notes").textContent = o.notes || "–";
+  document.getElementById("detail-actions").innerHTML = `
+    ${o.status !== "已完成"
+      ? `<button class="btn btn-sm btn-success" onclick="setOrderStatus(${o.id}, '已完成')"><i class="bi bi-check-circle"></i> 標記完成</button>`
+      : `<button class="btn btn-sm btn-outline-secondary" onclick="setOrderStatus(${o.id}, '製作中')"><i class="bi bi-arrow-counterclockwise"></i> 重啟訂單</button>`
+    }
+    <button class="btn btn-sm btn-outline-primary" onclick="editCurrentOrder()"><i class="bi bi-pencil"></i> 編輯</button>
+    <button class="btn btn-sm btn-outline-danger" onclick="deleteCurrentOrder()"><i class="bi bi-trash"></i> 刪除</button>
+  `;
 
   const itemsHtml = o.items.map(i => {
     const sizes = i.sizes.map(s => `<span class="badge bg-light text-dark border me-1">${s.size || "–"} × ${s.quantity}</span>`).join("");
@@ -268,6 +277,17 @@ async function deleteCurrentOrder() {
   }
 }
 
+async function setOrderStatus(id, status) {
+  try {
+    await api("PUT", `/api/orders/${id}/status`, { status });
+    loadOrders();
+    loadDashboard();
+    if (currentOrder?.id === id) await openOrder(id);
+  } catch(e) {
+    alert("更新失敗：" + e.message);
+  }
+}
+
 async function deleteOrder(id) {
   const order = allOrders.find(o => o.id === id);
   if (!confirm(`確定刪除訂單 ${order?.order_number || id}？此操作無法復原。`)) return;
@@ -384,7 +404,10 @@ function renderCustomers() {
   container.innerHTML = "";
   allCustomers.forEach(c => {
     const branchTags = c.branches.map(b =>
-      `<span class="branch-tag" style="cursor:pointer" onclick="editBranch(${b.id})">${b.name} <i class="bi bi-pencil" style="font-size:.65rem"></i></span>`).join("");
+      `<span class="branch-tag d-inline-flex align-items-center gap-1">
+        <span style="cursor:pointer" onclick="editBranch(${b.id})">${b.name} <i class="bi bi-pencil" style="font-size:.65rem"></i></span>
+        <button class="btn btn-link p-0 text-danger" onclick="deleteBranch(${b.id})" title="刪除院區" style="font-size:.7rem;line-height:1"><i class="bi bi-x-circle-fill"></i></button>
+      </span>`).join("");
     container.innerHTML += `
       <div class="col-12">
         <div class="card p-4">
@@ -480,10 +503,31 @@ async function submitCustomer() {
 let addBranchCustomerId = null;
 let editBranchId = null;
 
+async function deleteBranch(bid) {
+  let branchName = "";
+  allCustomers.forEach(c => {
+    const b = c.branches.find(x => x.id === bid);
+    if (b) branchName = b.name;
+  });
+  if (!confirm(`確定刪除院區「${branchName}」？此操作無法復原。`)) return;
+  try {
+    await api("DELETE", `/api/customers/branches/${bid}`);
+    await loadCustomers();
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
 function openAddBranch(cid) {
   addBranchCustomerId = cid;
   editBranchId = null;
-  new bootstrap.Modal(document.getElementById("newBranchModal")).show();
+  ["branch-name","branch-contact","branch-phone","branch-email","branch-line","branch-address","branch-notes"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document.querySelector("#newBranchModal .modal-title").textContent = "新增院區 / 分點";
+  document.querySelector("#newBranchModal .modal-footer .btn-primary").textContent = "新增";
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("newBranchModal")).show();
 }
 
 function editBranch(bid) {
@@ -503,7 +547,8 @@ function editBranch(bid) {
     document.getElementById("branch-address").value = branch.address || "";
     document.getElementById("branch-notes").value   = branch.notes || "";
     document.querySelector("#newBranchModal .modal-title").textContent = "編輯院區 / 分點";
-    new bootstrap.Modal(document.getElementById("newBranchModal")).show();
+    document.querySelector("#newBranchModal .modal-footer .btn-primary").textContent = "儲存變更";
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("newBranchModal")).show();
   } catch(e) { alert("editBranch 錯誤：" + e.message); }
 }
 
@@ -521,8 +566,8 @@ async function submitBranch() {
       await api("POST", `/api/customers/${addBranchCustomerId}/branches`,
         { customer_id: addBranchCustomerId, name, contact_name, phone, email, line_id, address, notes });
     }
-    bootstrap.Modal.getInstance(document.getElementById("newBranchModal")).hide();
-    loadCustomers();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("newBranchModal")).hide();
+    await loadCustomers();
   } catch(e) {
     alert("儲存失敗：" + e.message);
   }
@@ -546,7 +591,10 @@ function renderStaff() {
         <td>${s.title || "–"}</td>
         <td>${s.phone || "–"}</td>
         <td><span class="badge bg-light text-dark border">${s.active_items} 項進行中</span></td>
-        <td><button class="btn btn-sm btn-outline-secondary" onclick="editStaff(${s.id})">編輯</button></td>
+        <td><div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary" onclick="editStaff(${s.id})">編輯</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteStaff(${s.id})">刪除</button>
+        </div></td>
       </tr>`;
   });
 }
@@ -593,6 +641,21 @@ async function submitStaff() {
     loadStaff();
   } catch (e) {
     alert("儲存失敗：" + e.message);
+  }
+}
+
+async function deleteStaff(id) {
+  const s = allStaff.find(x => x.id === id);
+  if (s && s.active_items > 0) {
+    if (!confirm(`「${s.name}」目前有 ${s.active_items} 個進行中品項，確定仍要刪除？`)) return;
+  } else {
+    if (!confirm(`確定刪除人員「${s?.name || id}」？此操作無法復原。`)) return;
+  }
+  try {
+    await api("DELETE", `/api/staff/${id}`);
+    await loadStaff();
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
   }
 }
 
@@ -724,6 +787,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("newBranchModal").addEventListener("hidden.bs.modal", () => {
     editBranchId = null;
     document.querySelector("#newBranchModal .modal-title").textContent = "新增院區 / 分點";
+    document.querySelector("#newBranchModal .modal-footer .btn-primary").textContent = "新增";
+    ["branch-name","branch-contact","branch-phone","branch-email","branch-line","branch-address","branch-notes"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
   });
   document.getElementById("newCustomerModal").addEventListener("hidden.bs.modal", () => {
     editCustomerId = null;
