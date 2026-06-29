@@ -659,6 +659,182 @@ async function deleteStaff(id) {
   }
 }
 
+// ── 庫存管理 ─────────────────────────────────────────────
+let allInventory = [];
+
+async function loadInventory() {
+  allInventory = await api("GET", "/api/inventory");
+  renderInventory();
+}
+
+function renderInventory() {
+  const kw       = (document.getElementById("inv-search").value || "").toLowerCase();
+  const category = document.getElementById("inv-category-filter").value;
+  const lowOnly  = document.getElementById("inv-low-only").checked;
+
+  let list = allInventory.filter(it => {
+    const matchKw  = !kw || it.name.toLowerCase().includes(kw);
+    const matchCat = !category || it.category === category;
+    const matchLow = !lowOnly || it.low;
+    return matchKw && matchCat && matchLow;
+  });
+
+  // 頂部警告橫幅：列出所有低庫存品項
+  const lows = allInventory.filter(it => it.low);
+  const alertBox = document.getElementById("inv-alert");
+  if (lows.length) {
+    document.getElementById("inv-alert-text").textContent =
+      `有 ${lows.length} 項庫存不足：` + lows.map(it => `${it.name}（剩 ${it.quantity} ${it.unit}）`).join("、");
+    alertBox.classList.remove("d-none");
+  } else {
+    alertBox.classList.add("d-none");
+  }
+
+  const tbody = document.getElementById("inventory-tbody");
+  tbody.innerHTML = "";
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">尚無品項</td></tr>`;
+    return;
+  }
+  list.forEach(it => {
+    const statusBadge = it.low
+      ? `<span class="badge badge-urgent rounded-pill">庫存不足</span>`
+      : `<span class="badge badge-ok rounded-pill">正常</span>`;
+    const catBadge = it.category === "布"
+      ? `<span class="badge bg-primary-subtle text-primary">布</span>`
+      : `<span class="badge bg-secondary-subtle text-secondary">副料</span>`;
+    tbody.innerHTML += `
+      <tr class="${it.low ? 'table-warning' : ''}">
+        <td>${catBadge}</td>
+        <td><span class="fw-semibold">${it.name}</span>${it.notes ? `<div class="text-muted small">${it.notes}</div>` : ""}</td>
+        <td class="text-end fw-bold ${it.low ? 'text-danger' : ''}">${it.quantity} <span class="text-muted fw-normal small">${it.unit}</span></td>
+        <td class="text-center text-muted">${it.low_threshold}</td>
+        <td>${statusBadge}</td>
+        <td class="text-end">
+          <div class="input-group input-group-sm justify-content-end" style="max-width:240px;margin-left:auto">
+            <input type="number" min="1" value="1" class="form-control text-center" id="inv-step-${it.id}" style="max-width:70px">
+            <button class="btn btn-outline-success" onclick="adjustInventory(${it.id}, 1)" title="補貨"><i class="bi bi-plus-lg"></i> 補</button>
+            <button class="btn btn-outline-danger" onclick="adjustInventory(${it.id}, -1)" title="用掉"><i class="bi bi-dash-lg"></i> 用</button>
+          </div>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-link text-muted p-0 me-2" onclick="showInventoryLog(${it.id})" title="異動歷史"><i class="bi bi-clock-history"></i></button>
+          <button class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openInventoryModal(${it.id})" title="編輯"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteInventory(${it.id})" title="刪除"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`;
+  });
+}
+
+function invSyncUnit() {
+  const unit = document.getElementById("inv-unit");
+  if (!unit.value || unit.value === "支" || unit.value === "個") {
+    unit.value = document.getElementById("inv-category").value === "布" ? "支" : "個";
+  }
+}
+
+function openInventoryModal(id) {
+  const modal = new bootstrap.Modal(document.getElementById("invItemModal"));
+  const qtyHint = document.querySelector(".inv-qty-hint");
+  if (id) {
+    const it = allInventory.find(x => x.id === id);
+    document.getElementById("inv-modal-title").textContent = "編輯品項";
+    document.getElementById("inv-id").value = it.id;
+    document.getElementById("inv-category").value = it.category;
+    document.getElementById("inv-name").value = it.name;
+    document.getElementById("inv-unit").value = it.unit;
+    document.getElementById("inv-qty").value = it.quantity;
+    document.getElementById("inv-qty").disabled = true;       // 編輯時數量請用補貨/用掉
+    qtyHint.textContent = "數量請用列表的「補/用」按鈕調整";
+    document.getElementById("inv-threshold").value = it.low_threshold;
+    document.getElementById("inv-notes").value = it.notes || "";
+  } else {
+    document.getElementById("inv-modal-title").textContent = "新增品項";
+    document.getElementById("inv-id").value = "";
+    document.getElementById("inv-category").value = "布";
+    document.getElementById("inv-name").value = "";
+    document.getElementById("inv-unit").value = "支";
+    document.getElementById("inv-qty").value = 0;
+    document.getElementById("inv-qty").disabled = false;
+    qtyHint.textContent = "僅新增時可填";
+    document.getElementById("inv-threshold").value = 4;
+    document.getElementById("inv-notes").value = "";
+  }
+  modal.show();
+}
+
+async function submitInventory() {
+  const id = document.getElementById("inv-id").value;
+  const name = document.getElementById("inv-name").value.trim();
+  if (!name) { alert("請輸入品項名稱"); return; }
+  const payload = {
+    category: document.getElementById("inv-category").value,
+    name,
+    unit: document.getElementById("inv-unit").value.trim() || "個",
+    quantity: parseInt(document.getElementById("inv-qty").value) || 0,
+    low_threshold: parseInt(document.getElementById("inv-threshold").value) || 0,
+    notes: document.getElementById("inv-notes").value.trim() || null,
+  };
+  try {
+    if (id) await api("PUT", `/api/inventory/${id}`, payload);
+    else    await api("POST", "/api/inventory", payload);
+    bootstrap.Modal.getInstance(document.getElementById("invItemModal")).hide();
+    await loadInventory();
+  } catch(e) {
+    alert("儲存失敗：" + e.message);
+  }
+}
+
+async function adjustInventory(id, sign) {
+  const step = parseInt(document.getElementById(`inv-step-${id}`).value) || 1;
+  const change = Math.abs(step) * sign;
+  try {
+    const res = await api("POST", `/api/inventory/${id}/adjust`, { change });
+    await loadInventory();
+    if (res.low) {
+      const it = allInventory.find(x => x.id === id);
+      alert(`⚠️ ${it.name} 已低於警告值，目前剩 ${res.quantity} ${it.unit}`);
+    }
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
+function showInventoryLog(id) {
+  const it = allInventory.find(x => x.id === id);
+  document.getElementById("inv-log-name").textContent = it.name;
+  const tbody = document.getElementById("inv-log-tbody");
+  tbody.innerHTML = "";
+  if (!it.logs.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">尚無異動紀錄</td></tr>`;
+  } else {
+    it.logs.forEach(lg => {
+      const sign = lg.change > 0
+        ? `<span class="text-success">+${lg.change}</span>`
+        : `<span class="text-danger">${lg.change}</span>`;
+      tbody.innerHTML += `
+        <tr>
+          <td class="small text-muted">${lg.created_at}</td>
+          <td class="text-end fw-semibold">${sign}</td>
+          <td class="text-end">${lg.balance_after}</td>
+          <td class="small">${lg.note || ""}</td>
+        </tr>`;
+    });
+  }
+  new bootstrap.Modal(document.getElementById("invLogModal")).show();
+}
+
+async function deleteInventory(id) {
+  const it = allInventory.find(x => x.id === id);
+  if (!confirm(`確定刪除「${it.name}」？所有異動紀錄會一併刪除。`)) return;
+  try {
+    await api("DELETE", `/api/inventory/${id}`);
+    await loadInventory();
+  } catch(e) {
+    alert("刪除失敗：" + e.message);
+  }
+}
+
 // ── 通訊錄 ───────────────────────────────────────────────
 async function loadPhonebook() {
   const list = await api("GET", "/api/phonebook");
@@ -807,4 +983,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadOrders();
   await loadDashboard();
   await loadPhonebook();
+  await loadInventory();
 });

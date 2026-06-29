@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from apscheduler.schedulers.background import BackgroundScheduler
 from backend.database import engine, Base, SessionLocal
-from backend.routers import customers, staff, orders, phonebook
+from backend.routers import customers, staff, orders, phonebook, inventory
 from backend.notify import daily_reminder
 
 Base.metadata.create_all(bind=engine)
@@ -36,6 +36,7 @@ app.include_router(customers.router)
 app.include_router(staff.router)
 app.include_router(orders.router)
 app.include_router(phonebook.router)
+app.include_router(inventory.router)
 
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 templates = Jinja2Templates(directory="frontend/templates")

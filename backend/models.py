@@ -106,3 +106,29 @@ class ProductionNote(Base):
     content    = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     item       = relationship("ProductionItem", back_populates="notes")
+
+
+class InventoryItem(Base):
+    __tablename__ = "inventory_items"
+    id            = Column(Integer, primary_key=True)
+    category      = Column(String(20), nullable=False, default="布")   # 布 / 副料
+    name          = Column(String(200), nullable=False)
+    unit          = Column(String(20), default="支")                    # 支 / 個 / 卷 …
+    quantity      = Column(Integer, default=0)                          # 目前庫存
+    low_threshold = Column(Integer, default=4)                          # 低於此值警告
+    notes         = Column(Text)
+    created_at    = Column(DateTime, default=datetime.now)
+    logs          = relationship("InventoryLog", back_populates="item",
+                                 cascade="all, delete-orphan",
+                                 order_by="InventoryLog.created_at.desc()")
+
+
+class InventoryLog(Base):
+    __tablename__ = "inventory_logs"
+    id            = Column(Integer, primary_key=True)
+    item_id       = Column(Integer, ForeignKey("inventory_items.id"), nullable=False)
+    change        = Column(Integer, nullable=False)    # 正 = 補貨，負 = 用掉
+    balance_after = Column(Integer, nullable=False)    # 異動後結餘
+    note          = Column(Text)
+    created_at    = Column(DateTime, default=datetime.now)
+    item          = relationship("InventoryItem", back_populates="logs")

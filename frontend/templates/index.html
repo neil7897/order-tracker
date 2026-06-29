@@ -48,6 +48,7 @@
     <div class="section-label">主要功能</div>
     <a class="nav-link active" href="#" onclick="showPage('dashboard')"><i class="bi bi-grid-1x2"></i> 總覽</a>
     <a class="nav-link" href="#" onclick="showPage('orders')"><i class="bi bi-card-list"></i> 訂單管理</a>
+    <a class="nav-link" href="#" onclick="showPage('inventory')"><i class="bi bi-boxes"></i> 庫存管理</a>
     <div class="section-label">資料管理</div>
     <a class="nav-link" href="#" onclick="showPage('phonebook')"><i class="bi bi-telephone-fill"></i> 通訊錄</a>
     <a class="nav-link" href="#" onclick="showPage('customers')"><i class="bi bi-building"></i> 客戶管理</a>
@@ -191,6 +192,39 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light"><tr><th>姓名</th><th>職稱</th><th>聯絡方式</th><th>目前負責品項數</th><th></th></tr></thead>
         <tbody id="staff-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 庫存管理 -->
+  <div id="inventory" class="page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="fw-bold mb-0">庫存管理</h5>
+      <button class="btn btn-primary btn-sm" onclick="openInventoryModal()"><i class="bi bi-plus-lg"></i> 新增品項</button>
+    </div>
+    <div id="inv-alert" class="alert alert-warning py-2 mb-3 d-none">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="inv-alert-text"></span>
+    </div>
+    <div class="card p-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="inv-search" placeholder="搜尋品項名稱…" oninput="renderInventory()"></div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="inv-category-filter" onchange="renderInventory()">
+            <option value="">全部類別</option><option>布</option><option>副料</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="inv-low-only" onchange="renderInventory()">
+            <label class="form-check-label small" for="inv-low-only">只看庫存不足</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>類別</th><th>品項</th><th class="text-end">目前庫存</th><th class="text-center">警告值</th><th>狀態</th><th class="text-end" style="width:260px">補貨 / 用掉</th><th></th></tr></thead>
+        <tbody id="inventory-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -421,14 +455,53 @@
   </div>
 </div>
 
+<!-- Modal：新增 / 編輯庫存品項 -->
+<div class="modal fade" id="invItemModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="inv-modal-title">新增品項</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="inv-id">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label class="form-label">類別</label>
+            <select id="inv-category" class="form-select" onchange="invSyncUnit()"><option>布</option><option>副料</option></select>
+          </div>
+          <div class="col-md-7"><label class="form-label">品項名稱 <span class="text-danger">*</span></label><input type="text" id="inv-name" class="form-control" placeholder="e.g. 黑色棉布"></div>
+          <div class="col-md-4"><label class="form-label">單位</label><input type="text" id="inv-unit" class="form-control" placeholder="支"></div>
+          <div class="col-md-4"><label class="form-label">起始庫存</label><input type="number" id="inv-qty" class="form-control" value="0"><div class="form-text inv-qty-hint">僅新增時可填</div></div>
+          <div class="col-md-4"><label class="form-label">警告值</label><input type="number" id="inv-threshold" class="form-control" value="4"></div>
+          <div class="col-12"><label class="form-label">備註</label><textarea id="inv-notes" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="submitInventory()">儲存</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：異動歷史 -->
+<div class="modal fade" id="invLogModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">異動歷史 — <span id="inv-log-name"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light"><tr><th>時間</th><th class="text-end">異動</th><th class="text-end">結餘</th><th>備註</th></tr></thead>
+          <tbody id="inv-log-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/app.js?v=15"></script>
+<script src="/static/js/app.js?v=16"></script>
 <script>
   function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    const map = { dashboard:0, orders:1, detail:1, phonebook:2, customers:3, staff:4, notify:5 };
+    const map = { dashboard:0, orders:1, detail:1, inventory:2, phonebook:3, customers:4, staff:5, notify:6 };
     document.querySelectorAll('.sidebar .nav-link')[map[id]].classList.add('active');
     return false;
   }

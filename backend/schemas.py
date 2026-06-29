@@ -60,3 +60,15 @@ class StaffIn(BaseModel):
     line_id: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
+
+class InventoryItemIn(BaseModel):
+    category: str = "布"             # 布 / 副料
+    name: str
+    unit: str = "支"
+    quantity: int = 0               # 建立時的起始庫存
+    low_threshold: int = 4
+    notes: Optional[str] = None
+
+class InventoryAdjustIn(BaseModel):
+    change: int                     # 正 = 補貨，負 = 用掉
+    note: Optional[str] = None
